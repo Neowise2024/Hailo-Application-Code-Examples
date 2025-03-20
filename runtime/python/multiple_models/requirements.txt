@@ -1,0 +1,4 @@
+loguru
+opencv-python
+numpy
+Pillow>=8.1.2
