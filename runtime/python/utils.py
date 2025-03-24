@@ -143,11 +143,12 @@ class HailoAsyncInference:
         """
         return self.hef.get_input_vstream_infos()[0].shape  # Assumes one input
 
-    def run(self) -> None:
-        logger.info(f"HailoAsyncInference 실행 시작 (send_original_frame={self.send_original_frame}, batch_size={self.batch_size})")
+    def run(self, model_name: str = "empty") -> None:
+        logger.info(f"HailoAsyncInference {model_name} 실행 시작 (send_original_frame={self.send_original_frame}, batch_size={self.batch_size})")
         with self.infer_model.configure() as configured_infer_model:
             while True:
                 batch_data = self.input_queue.get()
+                logger.info(f"HailoAsyncInference {model_name} input_queue size: {self.input_queue.qsize()}")
                 # logger.info(f"HailoAsyncInference batch_data: {batch_data}")
                 if batch_data is None:
                     break  # Sentinel value to stop the inference loop
