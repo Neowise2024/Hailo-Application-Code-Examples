@@ -176,15 +176,18 @@ def main() -> None:
     
     manager = Manager()
         
+    # 카메라 설정
+    CAMERA_WIDTH = 1280
+    CAMERA_HEIGHT = 720
     
     cap = None
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
     
     camera_queues = []
     camera_queues.append(manager.Queue(maxsize=2))
-    camera_queues.append( manager.Queue(maxsize=2))    
+    camera_queues.append(manager.Queue(maxsize=2))    
     camera_processes = []
     
     
@@ -229,7 +232,7 @@ def main() -> None:
     )
     display_process.start()
     
-    # 임시로 주석 처리 해뒀어 왜냐하면 object detection 모델이 정상적으로 처리 되는지 확인해야해
+    # 포즈 추정 모델 실행
     pose_estimation = PoseEstimation(
         pose_estimation_model_config,
         camera_queue=camera_queues[0]
@@ -238,31 +241,39 @@ def main() -> None:
     pose_estimation_process = Process(
         target=pose_estimation.infer,
         args=(            
-            model_display_queues[0], 
+            model_display_queues[0],
+            CAMERA_WIDTH,
+            CAMERA_HEIGHT
         )
     )
     pose_estimation_process.start()
     
-    # Start the inference
+    # 객체 감지 모델 실행
     object_detection = ObjectDetection(
         object_detection_model_config,
         camera_queue=camera_queues[1]
     )
     logger.info("Starting object detection inference")
-    # 여기서 100% 멈출 꺼야 왜냐하면 여기가 동기로 처리되거든 그래서 이걸 비동기로 바꿔야 함. 
+    
     object_detection_process = Process(
         target=object_detection.infer,
         args=(model_display_queues[1],)
     )
     object_detection_process.start()
     
-    # object_detection.infer(model_display_queues[0])
-    
+    # 프로세스 완료 대기
     display_process.join()
     
-    # object_detection_process.join()
+    # 리소스 정리
+    if cap is not None:
+        cap.release()
+    cv2.destroyAllWindows()
     
-    for camera_process in camera_processes:
-        camera_process.join()
+    # 실행 중인 모든 프로세스 종료 확인
+    for process in [pose_estimation_process, object_detection_process, process_result]:
+        if process.is_alive():
+            process.terminate()
+            process.join()
+
 if __name__ == "__main__":
     main()
